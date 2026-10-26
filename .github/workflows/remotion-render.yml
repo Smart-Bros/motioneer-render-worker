@@ -1,0 +1,60 @@
+name: Motioneer Free Cluster Render Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_id:
+        description: 'Batch ID to render'
+        required: true
+        type: string
+      render_ids:
+        description: 'Comma-separated Render IDs'
+        required: false
+        type: string
+
+jobs:
+  render-batch:
+    name: Remotion SSR Video Rendering
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Chromium, FFmpeg and Fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            chromium-browser \
+            ffmpeg \
+            fonts-noto-color-emoji \
+            fonts-liberation \
+            fonts-freefont-ttf
+
+      - name: Install Dependencies
+        run: |
+          if [ -f "render-worker/package.json" ]; then
+            npm install --ignore-scripts || true
+            cd render-worker && npm install
+          else
+            npm install
+          fi
+
+      - name: Run Remotion Batch CLI
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+        run: |
+          if [ -f "render-worker/batch-cli.ts" ]; then
+            npx ts-node render-worker/batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
+          else
+            npx ts-node batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
+          fi
