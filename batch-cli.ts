@@ -292,15 +292,16 @@ async function main() {
       }
 
       const aspect = meta.aspectRatio || '16:9';
-      let renderWidth = 1920;
-      let renderHeight = 1080;
+      const is4K = meta.resolution === '4K';
+      let renderWidth = is4K ? 3840 : 1920;
+      let renderHeight = is4K ? 2160 : 1080;
 
       if (aspect === '9:16') {
-        renderWidth = 1080;
-        renderHeight = 1920;
+        renderWidth = is4K ? 2160 : 1080;
+        renderHeight = is4K ? 3840 : 1920;
       } else if (aspect === '1:1') {
-        renderWidth = 1080;
-        renderHeight = 1080;
+        renderWidth = is4K ? 2160 : 1080;
+        renderHeight = is4K ? 2160 : 1080;
       }
 
       await renderMedia({
