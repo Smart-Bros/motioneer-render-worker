@@ -2,12 +2,16 @@ import React from 'react';
 import {
   AbsoluteFill,
   Sequence,
+  Audio,
   useCurrentFrame,
   useVideoConfig,
   spring,
   interpolate,
   Easing,
 } from 'remotion';
+import { Icon } from '@iconify/react';
+import { getSfxUrl } from '@/lib/sfx-engine';
+import { compileRemotionComponent } from '@/lib/dynamic-remotion-compiler';
 
 export type EnterAnimationType =
   | 'spring-up'
@@ -19,13 +23,21 @@ export type EnterAnimationType =
 
 export type LayerType =
   | 'KineticTextLayer'
+  | 'Text'
   | 'AnimatedShapeLayer'
+  | 'Shape'
   | 'SvgPathLayer'
+  | 'SvgChart'
   | 'GlassBentoLayer'
+  | 'BentoCard'
   | 'MetricCounterLayer'
+  | 'MetricCounter'
   | 'ProgressRingLayer'
+  | 'ProgressRing'
   | 'RadarHudLayer'
-  | 'GridBackgroundLayer';
+  | 'GridBackgroundLayer'
+  | 'IconifyVector'
+  | 'Badge';
 
 export interface SpringConfig {
   damping: number;
@@ -53,89 +65,99 @@ export interface CustomProceduralCompositionProps {
   sceneTitle?: string;
   backgroundColor?: string;
   layers?: MotionLayer[];
+  sfxType?: string;
+  isMuted?: boolean;
+  customCode?: string;
+  tsxCode?: string;
+  primaryHeadline?: string;
+  secondarySubtitle?: string;
+  accentBadge?: string;
+  iconName?: string;
+  accentColor?: string;
+  secondaryColor?: string;
+  fontFamily?: string;
+  position?: string;
 }
 
 export const DEFAULT_PROCEDURAL_LAYERS: MotionLayer[] = [
   {
     id: 'layer-grid',
     type: 'GridBackgroundLayer',
-    name: 'Cyberpunk Grid',
+    name: 'Perspective Matrix',
     startFrame: 0,
     durationInFrames: 180,
     x: 0,
     y: 0,
     scale: 1,
     rotation: 0,
-    color: '#38bdf8',
+    color: '#ffffff',
     enterAnimation: 'scale-pop',
-    springConfig: { damping: 15, stiffness: 80, mass: 1 },
+    springConfig: { damping: 18, stiffness: 70, mass: 1 },
     props: {
-      gridSize: 48,
-      opacity: 0.15,
+      gridSize: 52,
+      opacity: 0.08,
       perspective: 60,
     },
   },
   {
     id: 'layer-bento',
     type: 'GlassBentoLayer',
-    name: 'Hero Bento Card',
-    startFrame: 5,
-    durationInFrames: 175,
+    name: 'Frosted Bento Stage',
+    startFrame: 4,
+    durationInFrames: 176,
     x: 50,
     y: 50,
     scale: 1,
     rotation: 0,
-    color: '#00f0ff',
+    color: '#38bdf8',
     enterAnimation: 'spring-up',
     springConfig: { damping: 14, stiffness: 120, mass: 0.8 },
     props: {
-      width: 720,
-      height: 380,
-      backdropBlur: 24,
+      width: 760,
+      height: 400,
+      backdropBlur: 32,
       borderRadius: 24,
-      borderColor: 'rgba(255, 255, 255, 0.12)',
-      backgroundColor: 'rgba(10, 10, 16, 0.85)',
-      glowColor: 'rgba(0, 240, 255, 0.25)',
+      borderColor: 'rgba(255, 255, 255, 0.18)',
+      backgroundColor: 'rgba(12, 13, 18, 0.82)',
+      glowColor: 'rgba(56, 189, 248, 0.2)',
     },
   },
   {
     id: 'layer-badge',
-    type: 'KineticTextLayer',
-    name: 'Telemetry Badge',
-    startFrame: 12,
-    durationInFrames: 168,
+    type: 'Badge',
+    name: 'Efficiency Pill',
+    startFrame: 10,
+    durationInFrames: 170,
     x: 50,
-    y: 38,
+    y: 36,
     scale: 1,
     rotation: 0,
-    color: '#00f0ff',
+    color: '#38bdf8',
     enterAnimation: 'wipe-right',
     springConfig: { damping: 12, stiffness: 150, mass: 0.7 },
     props: {
-      text: 'AI MOTION DIRECTOR • SYSTEM ACTIVE',
-      fontSize: 13,
-      fontWeight: 800,
-      letterSpacing: '0.2em',
-      fontFamily: 'monospace',
+      text: '10X FASTER EFFICIENCY',
+      icon: 'logos:apple',
+      fontSize: 12,
     },
   },
   {
     id: 'layer-headline',
     type: 'KineticTextLayer',
-    name: 'Headline',
-    startFrame: 16,
-    durationInFrames: 164,
+    name: 'Keynote Headline',
+    startFrame: 14,
+    durationInFrames: 166,
     x: 50,
-    y: 47,
+    y: 46,
     scale: 1,
     rotation: 0,
     color: '#ffffff',
     enterAnimation: 'spring-up',
     springConfig: { damping: 13, stiffness: 130, mass: 0.8 },
     props: {
-      text: 'Next-Gen Motion Synthesis',
+      text: 'KEYNOTE BENTO REVEAL',
       fontSize: 44,
-      fontWeight: 800,
+      fontWeight: 900,
       letterSpacing: '-0.02em',
       fontFamily: 'Inter, system-ui, sans-serif',
     },
@@ -143,10 +165,10 @@ export const DEFAULT_PROCEDURAL_LAYERS: MotionLayer[] = [
   {
     id: 'layer-metric',
     type: 'MetricCounterLayer',
-    name: 'Growth Counter',
-    startFrame: 22,
-    durationInFrames: 158,
-    x: 35,
+    name: 'Multiplier Counter',
+    startFrame: 20,
+    durationInFrames: 160,
+    x: 36,
     y: 60,
     scale: 1,
     rotation: 0,
@@ -154,19 +176,19 @@ export const DEFAULT_PROCEDURAL_LAYERS: MotionLayer[] = [
     enterAnimation: 'scale-pop',
     springConfig: { damping: 14, stiffness: 120, mass: 0.8 },
     props: {
-      targetValue: 840,
-      prefix: '+',
-      suffix: '%',
-      label: 'ENGAGEMENT VELOCITY',
-      duration: 45,
+      targetValue: 10,
+      prefix: '',
+      suffix: 'X',
+      label: 'EFFICIENCY MULTIPLIER',
+      duration: 35,
     },
   },
   {
     id: 'layer-progress',
     type: 'ProgressRingLayer',
-    name: 'Efficiency Ring',
-    startFrame: 26,
-    durationInFrames: 154,
+    name: 'Render Precision Ring',
+    startFrame: 24,
+    durationInFrames: 156,
     x: 65,
     y: 60,
     scale: 1,
@@ -175,32 +197,12 @@ export const DEFAULT_PROCEDURAL_LAYERS: MotionLayer[] = [
     enterAnimation: '3d-flip',
     springConfig: { damping: 12, stiffness: 140, mass: 0.7 },
     props: {
-      radius: 42,
-      strokeWidth: 7,
-      percentage: 94,
+      radius: 40,
+      strokeWidth: 6,
+      percentage: 100,
       trackColor: 'rgba(255, 255, 255, 0.08)',
       showLabel: true,
-      label: 'RENDER SPEED',
-    },
-  },
-  {
-    id: 'layer-radar',
-    type: 'RadarHudLayer',
-    name: 'Corner HUD Telemetry',
-    startFrame: 10,
-    durationInFrames: 170,
-    x: 88,
-    y: 18,
-    scale: 0.85,
-    rotation: 0,
-    color: '#00f0ff',
-    enterAnimation: 'orbit',
-    springConfig: { damping: 14, stiffness: 100, mass: 1 },
-    props: {
-      size: 90,
-      ringCount: 3,
-      sweepSpeed: 1.5,
-      telemetryText: 'NODE_01 // 60FPS',
+      label: 'OPTIMIZED',
     },
   },
 ];
@@ -725,13 +727,103 @@ const GridBackgroundView: React.FC<{ layer: MotionLayer; frame: number; fps: num
   );
 };
 
-export const CustomProceduralComposition: React.FC<CustomProceduralCompositionProps> = ({
-  sceneTitle = 'Generative Motion Lab',
-  backgroundColor = 'transparent',
-  layers = DEFAULT_PROCEDURAL_LAYERS,
-}) => {
+// 9. Iconify Vector Layer
+const IconifyVectorView: React.FC<{ layer: MotionLayer; frame: number; fps: number }> = ({ layer }) => {
+  const icon = layer.props?.icon || 'logos:apple';
+  const size = layer.props?.size || 48;
+  return (
+    <div style={{ color: layer.color || '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Icon icon={icon} width={size} height={size} />
+    </div>
+  );
+};
+
+// 10. Badge Layer
+const BadgeView: React.FC<{ layer: MotionLayer; frame: number; fps: number }> = ({ layer }) => {
+  const text = layer.props?.text || '10X FASTER';
+  const icon = layer.props?.icon;
+  const fontSize = layer.props?.fontSize || 12;
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '6px 16px',
+        borderRadius: '9999px',
+        backgroundColor: `${layer.color}18`,
+        border: `1px solid ${layer.color}45`,
+        color: layer.color || '#38bdf8',
+        fontSize: `${fontSize}px`,
+        fontWeight: 800,
+        fontFamily: 'monospace',
+        letterSpacing: '0.12em',
+        boxShadow: `0 0 20px ${layer.color}25`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {icon && <Icon icon={icon} width={14} height={14} />}
+      <span>{text}</span>
+    </div>
+  );
+};
+
+export const CustomProceduralComposition: React.FC<CustomProceduralCompositionProps> = (props) => {
+  const {
+    sceneTitle = 'Generative Motion Lab',
+    backgroundColor = 'transparent',
+    layers = DEFAULT_PROCEDURAL_LAYERS,
+    sfxType = 'none',
+    isMuted = false,
+    customCode,
+    tsxCode,
+    primaryHeadline,
+    secondarySubtitle,
+    accentBadge,
+    iconName,
+    accentColor,
+    secondaryColor,
+    fontFamily,
+    position,
+  } = props;
+
+  const activeCode = customCode || tsxCode;
+  const compiled = React.useMemo(() => {
+    if (activeCode && typeof activeCode === 'string' && activeCode.trim().length > 20) {
+      try {
+        const res = compileRemotionComponent(activeCode);
+        return res.Component;
+      } catch (err) {
+        console.warn('[CustomProceduralComposition] Dynamic compile note:', err);
+      }
+    }
+    return null;
+  }, [activeCode]);
+
+  if (compiled) {
+    const DynComp = compiled;
+    return (
+      <DynComp
+        primaryHeadline={primaryHeadline || sceneTitle}
+        secondarySubtitle={secondarySubtitle}
+        accentBadge={accentBadge}
+        iconName={iconName}
+        accentColor={accentColor}
+        secondaryColor={secondaryColor}
+        fontFamily={fontFamily}
+        backgroundColor={backgroundColor}
+        position={position}
+        sceneTitle={sceneTitle}
+        sfxType={sfxType}
+        isMuted={isMuted}
+      />
+    );
+  }
+
   const frame = useCurrentFrame();
-  const { fps, width, height } = useVideoConfig();
+  const { fps, width, height, durationInFrames } = useVideoConfig();
+  const sfxUrl = getSfxUrl(sfxType);
+  const exitFrame = Math.max(0, durationInFrames - 22);
 
   return (
     <AbsoluteFill
@@ -744,6 +836,18 @@ export const CustomProceduralComposition: React.FC<CustomProceduralCompositionPr
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
+      {sfxUrl && !isMuted && (
+        <>
+          <Sequence from={0}>
+            <Audio src={sfxUrl} volume={0.8} />
+          </Sequence>
+          {exitFrame > 20 && (
+            <Sequence from={exitFrame}>
+              <Audio src={sfxUrl} volume={0.6} />
+            </Sequence>
+          )}
+        </>
+      )}
       {layers.map((layer) => {
         // Check if layer is active in current frame window
         if (frame < layer.startFrame || frame > layer.startFrame + layer.durationInFrames) {
@@ -757,21 +861,27 @@ export const CustomProceduralComposition: React.FC<CustomProceduralCompositionPr
         let LayerComponent = null;
         switch (layer.type) {
           case 'KineticTextLayer':
+          case 'Text':
             LayerComponent = <KineticTextView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'AnimatedShapeLayer':
+          case 'Shape':
             LayerComponent = <AnimatedShapeView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'SvgPathLayer':
+          case 'SvgChart':
             LayerComponent = <SvgPathView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'GlassBentoLayer':
+          case 'BentoCard':
             LayerComponent = <GlassBentoView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'MetricCounterLayer':
+          case 'MetricCounter':
             LayerComponent = <MetricCounterView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'ProgressRingLayer':
+          case 'ProgressRing':
             LayerComponent = <ProgressRingView layer={layer} frame={frame} fps={fps} />;
             break;
           case 'RadarHudLayer':
@@ -779,6 +889,12 @@ export const CustomProceduralComposition: React.FC<CustomProceduralCompositionPr
             break;
           case 'GridBackgroundLayer':
             LayerComponent = <GridBackgroundView layer={layer} frame={frame} fps={fps} />;
+            break;
+          case 'IconifyVector':
+            LayerComponent = <IconifyVectorView layer={layer} frame={frame} fps={fps} />;
+            break;
+          case 'Badge':
+            LayerComponent = <BadgeView layer={layer} frame={frame} fps={fps} />;
             break;
           default:
             LayerComponent = null;
