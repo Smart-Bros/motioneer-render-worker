@@ -7,6 +7,7 @@ import {
   SfxTrigger,
   MotionBlurWrapper,
   computeTransitionTransform,
+  resolveTemplateWrapperPosition,
 } from '../motionEcosystem';
 
 export interface PodcastVoiceWaveProps {
@@ -97,16 +98,16 @@ export const PodcastVoiceWave: React.FC<PodcastVoiceWaveProps> = ({
   const numBars = 24;
   const sfxAudioUrl = resolveSfxUrl(sfxType, isFree);
 
+  const posStyle = resolveTemplateWrapperPosition(position);
+
   return (
     <AbsoluteFill
       style={{
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: isBottom ? 'flex-end' : 'center',
-        alignItems: position === 'bottom-left' ? 'flex-start' : 'center',
-        paddingBottom: isBottom ? `${Math.round(height * 0.1)}px` : 0,
-        paddingLeft: isBottom ? `${Math.round(width * 0.08)}px` : 0,
-        paddingRight: isBottom ? 0 : 0,
+        justifyContent: posStyle.justifyContent,
+        alignItems: posStyle.alignItems,
+        padding: posStyle.padding,
         backgroundColor: canvasBgColor || 'transparent',
         fontFamily,
         boxSizing: 'border-box',
