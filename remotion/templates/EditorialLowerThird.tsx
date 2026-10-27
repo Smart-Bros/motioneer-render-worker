@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
+import { Icon } from '@iconify/react';
 import { Watermark } from '../Watermark';
 import {
   resolveSfxUrl,
@@ -7,6 +8,7 @@ import {
   SfxTrigger,
   MotionBlurWrapper,
   computeTransitionTransform,
+  resolveTemplateWrapperPosition,
 } from '../motionEcosystem';
 
 export interface EditorialLowerThirdProps {
@@ -16,6 +18,7 @@ export interface EditorialLowerThirdProps {
   accentColor?: string;
   secondaryColor?: string;
   fontFamily?: string;
+  iconName?: string;
   position?: string;
   isFree?: boolean;
   sfxType?: string;
@@ -37,6 +40,7 @@ export const EditorialLowerThird: React.FC<EditorialLowerThirdProps> = ({
   accentColor = '#38bdf8',
   secondaryColor = '#6366f1',
   fontFamily = 'Inter, -apple-system, sans-serif',
+  iconName,
   position = 'bottom-left',
   isFree = false,
   sfxType = 'none',
@@ -94,16 +98,16 @@ export const EditorialLowerThird: React.FC<EditorialLowerThirdProps> = ({
   const blockWidth = interpolate(blockWipe, [0, 1], [0, 10 * scale]);
   const sfxAudioUrl = resolveSfxUrl(sfxType, isFree);
 
+  const posStyle = resolveTemplateWrapperPosition(position);
+
   return (
     <AbsoluteFill
       style={{
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: isBottom ? 'flex-end' : 'center',
-        alignItems: isBottom ? 'flex-start' : 'center',
-        paddingBottom: isBottom ? `${Math.round(height * 0.1)}px` : 0,
-        paddingLeft: isBottom ? `${Math.round(width * 0.08)}px` : 0,
-        paddingRight: isBottom ? 0 : 0,
+        justifyContent: posStyle.justifyContent,
+        alignItems: posStyle.alignItems,
+        padding: posStyle.padding,
         backgroundColor: canvasBgColor || 'transparent',
         fontFamily,
         boxSizing: 'border-box',
@@ -112,7 +116,7 @@ export const EditorialLowerThird: React.FC<EditorialLowerThirdProps> = ({
     >
       <SfxTrigger sfxUrl={sfxAudioUrl} durationInFrames={durationInFrames} />
 
-      <MotionBlurWrapper enabled={motionBlur} isFree={isFree}>
+      <MotionBlurWrapper enabled={motionBlur} isFree={isFree} position={position}>
         {/* Two-Tone Architectural Lower Third Container */}
         <div
           style={{
@@ -150,6 +154,16 @@ export const EditorialLowerThird: React.FC<EditorialLowerThirdProps> = ({
           >
             {/* Organization Tag Badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: `${8 * scale}px` }}>
+              {iconName && (
+                <Icon
+                  icon={iconName}
+                  style={{
+                    width: `${14 * scale}px`,
+                    height: `${14 * scale}px`,
+                    color: tagColor,
+                  }}
+                />
+              )}
               <span
                 style={{
                   fontSize: `${Math.round(10 * scale)}px`,
