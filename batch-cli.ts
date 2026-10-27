@@ -194,10 +194,13 @@ async function main() {
     console.log(`[Job ${jobNum}/${jobs.length}] Starting render ID: ${job.id}`);
     console.log(`Prompt: "${job.prompt}"`);
 
-    // Mark status 'rendering'
-    await supabase.from('renders').update({ status: 'rendering' }).eq('id', job.id);
-
     const meta = job.metadata || {};
+
+    // Mark stage 'rendering' in metadata (maintaining valid check constraint status 'pending')
+    await supabase
+      .from('renders')
+      .update({ metadata: { ...meta, stage: 'rendering' } })
+      .eq('id', job.id);
     const format = (meta.format || 'webm').toLowerCase();
     const isWebm = format.includes('webm');
     const fileName = `batch-${batchId || 'cli'}-${job.id}.${isWebm ? 'webm' : 'mp4'}`;
