@@ -2,6 +2,7 @@ import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
 import { Icon } from '@iconify/react';
 import { Watermark } from '../Watermark';
+import { resolveTemplateWrapperPosition } from '../motionEcosystem';
 
 export interface AppleGlassSpeakerCardProps {
   name?: string;
@@ -100,16 +101,16 @@ export const AppleGlassSpeakerCard: React.FC<AppleGlassSpeakerCardProps> = ({
     .join('')
     .toUpperCase() || 'AV';
 
+  const posStyle = resolveTemplateWrapperPosition(position);
+
   return (
     <AbsoluteFill
       style={{
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: isSafeZone ? 'flex-end' : 'center',
-        alignItems: 'center',
-        paddingBottom: isSafeZone ? `${Math.round(height * 0.12)}px` : 0,
-        paddingLeft: isSafeZone ? `${Math.round(width * 0.08)}px` : 0,
-        paddingRight: isSafeZone ? `${Math.round(width * 0.08)}px` : 0,
+        justifyContent: posStyle.justifyContent,
+        alignItems: posStyle.alignItems,
+        padding: posStyle.padding,
         backgroundColor: 'transparent',
         fontFamily,
         boxSizing: 'border-box',
