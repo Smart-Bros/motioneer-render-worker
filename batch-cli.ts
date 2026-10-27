@@ -171,10 +171,11 @@ async function main() {
   });
   console.log(`[Batch CLI] Pre-bundle completed in ${Date.now() - bundleStartTime}ms`);
 
-  // Detect Chromium executable
+  // Detect Chrome / Chromium executable
   const chromeExecutable =
     process.env.REMOTION_CHROME_EXECUTABLE ||
     process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (fs.existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined) ||
     (fs.existsSync('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser' : undefined) ||
     (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
 
