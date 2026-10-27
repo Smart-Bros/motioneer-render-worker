@@ -1,6 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate } from 'remotion';
 import { evolvePath } from '@remotion/paths';
+import { Icon } from '@iconify/react';
 import { Watermark } from '../Watermark';
 import {
   resolveSfxUrl,
@@ -20,6 +21,7 @@ export interface StripeMetricBentoCardProps {
   primaryColor?: string;
   accentColor?: string;
   fontFamily?: string;
+  iconName?: string;
   position?: 'Center Stage' | 'Bottom Safe-Zone';
   isFree?: boolean;
   sfxType?: string;
@@ -30,7 +32,7 @@ export interface StripeMetricBentoCardProps {
 }
 
 export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
-  label = 'CONVERSION VELOCITY',
+  label = 'GROWTH METRIC',
   targetValue = 384,
   prefix = '+',
   suffix = '%',
@@ -39,6 +41,7 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
   primaryColor = '#10b981',
   accentColor = '#3b82f6',
   fontFamily = 'Cabinet Grotesk, Plus Jakarta Sans, system-ui, sans-serif',
+  iconName,
   position = 'Center Stage',
   isFree = false,
   sfxType = 'none',
@@ -122,7 +125,7 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
     >
       <SfxTrigger sfxUrl={sfxAudioUrl} durationInFrames={durationInFrames} />
 
-      <MotionBlurWrapper enabled={motionBlur} isFree={isFree}>
+      <MotionBlurWrapper enabled={motionBlur} isFree={isFree} position={position}>
         <div
           style={{
             transform,
@@ -164,17 +167,29 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
               gap: `${16 * scale}px`,
             }}
           >
-            <span
-              style={{
-                fontSize: `${Math.round(13 * scale)}px`,
-                fontWeight: 800,
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase',
-                color: '#a1a1aa',
-              }}
-            >
-              {label}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: `${8 * scale}px` }}>
+              {iconName && (
+                <Icon
+                  icon={iconName}
+                  style={{
+                    width: `${16 * scale}px`,
+                    height: `${16 * scale}px`,
+                    color: primaryColor,
+                  }}
+                />
+              )}
+              <span
+                style={{
+                  fontSize: `${Math.round(13 * scale)}px`,
+                  fontWeight: 800,
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  color: '#a1a1aa',
+                }}
+              >
+                {label}
+              </span>
+            </div>
 
             <span
               style={{
