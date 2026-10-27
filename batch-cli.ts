@@ -124,15 +124,22 @@ async function main() {
       const renderStartTime = Date.now();
       const inputProps = {
         prompt: job.prompt,
+        sceneTitle: meta.sceneTitle || job.prompt,
+        primaryHeadline: job.prompt || meta.sceneTitle,
         clientName: meta.clientName || 'Motioneer Studio',
         tier: meta.tier || 'agency',
         primaryColor: meta.primaryColor || '#0f172a',
         secondaryColor: meta.secondaryColor || '#38bdf8',
+        layers: meta.layers || [],
+        customCode: meta.customCode,
+        sfxType: meta.sfxType || 'none',
+        backgroundColor: meta.canvasBgColor || '#09090b',
+        aspectRatio: meta.aspectRatio || '16:9',
       };
 
       const composition = await selectComposition({
         serveUrl,
-        id: meta.compositionId || 'MotioneerGraphic',
+        id: meta.compositionId || 'CustomProceduralComposition',
         inputProps,
       });
 
