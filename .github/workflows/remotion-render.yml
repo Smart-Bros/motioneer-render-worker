@@ -27,15 +27,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Chromium, FFmpeg and Fonts
+      - name: Install System Fonts & FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            chromium-browser \
-            ffmpeg \
             fonts-noto-color-emoji \
             fonts-liberation \
-            fonts-freefont-ttf
+            fonts-freefont-ttf \
+            ffmpeg
 
       - name: Install Dependencies
         run: |
@@ -49,7 +48,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+          REMOTION_CHROME_EXECUTABLE: /usr/bin/google-chrome
         run: |
           if [ -f "render-worker/batch-cli.ts" ]; then
             npx ts-node render-worker/batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
