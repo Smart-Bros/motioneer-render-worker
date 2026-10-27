@@ -26,7 +26,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Chromium, FFmpeg and Fonts
         run: |
@@ -41,10 +40,9 @@ jobs:
       - name: Install Dependencies
         run: |
           if [ -f "render-worker/package.json" ]; then
-            npm install --ignore-scripts || true
-            cd render-worker && npm install
+            cd render-worker && npm install --no-audit --no-fund
           else
-            npm install
+            npm install --no-audit --no-fund
           fi
 
       - name: Run Remotion Batch CLI
