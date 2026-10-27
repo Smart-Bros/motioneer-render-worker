@@ -22,10 +22,13 @@ function parseArgs(): CommandLineArgs {
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--batch-id' && args[i + 1]) {
-      result.batchId = args[i + 1];
+      result.batchId = args[i + 1].trim();
       i++;
     } else if (args[i] === '--render-ids' && args[i + 1]) {
-      result.renderIds = args[i + 1].split(',').map((id) => id.trim()).filter(Boolean);
+      result.renderIds = args[i + 1]
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
       i++;
     }
   }
@@ -33,9 +36,61 @@ function parseArgs(): CommandLineArgs {
   return result;
 }
 
+function resolveCompositionId(templateName?: string, compositionId?: string): string {
+  if (
+    compositionId &&
+    compositionId !== 'default' &&
+    compositionId !== 'CustomProceduralComposition'
+  ) {
+    return compositionId;
+  }
+
+  if (!templateName) return 'AppleGlassSpeakerCard';
+
+  const t = templateName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (t.includes('vox') || t.includes('highlighter') || t.includes('kinetic') || t.includes('bounce')) {
+    return 'VoxKineticHighlighter';
+  }
+  if (t.includes('podcast') || t.includes('waveform') || t.includes('voice') || t.includes('neon')) {
+    return 'PodcastVoiceWave';
+  }
+  if (t.includes('stripe') || t.includes('kpi') || t.includes('metric') || t.includes('counter')) {
+    return 'StripeMetricBentoCard';
+  }
+  if (t.includes('youtube') || t.includes('cta') || t.includes('action') || t.includes('socialcreator')) {
+    return 'YoutubeCreatorActionBar';
+  }
+  if (t.includes('swiss') || t.includes('split') || t.includes('clean') || t.includes('title')) {
+    return 'MinimalSwissTitleSplit';
+  }
+  if (t.includes('product') || t.includes('price') || t.includes('glassproduct')) {
+    return 'GlassProductCallout';
+  }
+  if (t.includes('quote') || t.includes('tweet') || t.includes('testimonial')) {
+    return 'SocialQuoteCard';
+  }
+  if (t.includes('ticker') || t.includes('news') || t.includes('breaking')) {
+    return 'BreakingTickerBar';
+  }
+  if (t.includes('chapter') || t.includes('progress') || t.includes('pill')) {
+    return 'ChapterProgressPill';
+  }
+  if (t.includes('versus') || t.includes('comparison') || t.includes('vs')) {
+    return 'VersusComparisonSplit';
+  }
+  if (t.includes('bug') || t.includes('watermark') || t.includes('corner')) {
+    return 'MinimalCornerBug';
+  }
+  if (t.includes('procedural') || t.includes('custom') || t.includes('3d')) {
+    return 'CustomProceduralComposition';
+  }
+
+  return 'AppleGlassSpeakerCard';
+}
+
 async function main() {
   console.log('=====================================================');
-  console.log(' Motioneer GitHub Actions Free Render Runner ');
+  console.log(' Motioneer GitHub Actions Remotion SSR Runner        ');
   console.log('=====================================================');
 
   const { batchId, renderIds } = parseArgs();
@@ -56,13 +111,15 @@ async function main() {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   // 1. Fetch pending render records
-  console.log(`[Batch CLI] Querying render jobs for batch: ${batchId || 'by IDs'}`);
+  console.log(`[Batch CLI] Querying render jobs (batchId: ${batchId || 'N/A'}, renderIds count: ${renderIds?.length || 0})`);
   let query = supabase.from('renders').select('*');
 
-  if (batchId) {
-    query = query.contains('metadata', { batchId });
-  } else if (renderIds && renderIds.length > 0) {
+  if (renderIds && renderIds.length > 0) {
     query = query.in('id', renderIds);
+  } else if (batchId) {
+    // Strip sub-batch partitions if present (e.g. batch-1234-part1 -> batch-1234)
+    const baseBatchId = batchId.replace(/-part\d+$/, '');
+    query = query.contains('metadata', { batchId: baseBatchId });
   }
 
   const { data: jobs, error: fetchErr } = await query;
@@ -79,26 +136,51 @@ async function main() {
 
   console.log(`[Batch CLI] Found ${jobs.length} render jobs to process.`);
 
-  // 2. Pre-bundle Remotion composition once
+  // 2. Pre-bundle Remotion composition root with alias resolution
   const possiblePaths = [
     path.resolve(process.cwd(), 'remotion/index.ts'),
     path.resolve(process.cwd(), '../remotion/index.ts'),
     path.resolve(__dirname, '../../remotion/index.ts'),
+    path.resolve(__dirname, '../remotion/index.ts'),
   ];
   const entryPoint = possiblePaths.find((p) => fs.existsSync(p));
 
   if (!entryPoint) {
-    console.error('[Batch CLI] Remotion entrypoint index.ts not found.');
+    console.error('[Batch CLI] Remotion entrypoint index.ts not found. Searched:', possiblePaths);
     process.exit(1);
   }
 
   console.log(`[Batch CLI] Pre-bundling Remotion root from: ${entryPoint}`);
   const bundleStartTime = Date.now();
+  const rootDir = path.dirname(path.dirname(entryPoint));
+
   const serveUrl = await bundle({
     entryPoint,
-    webpackOverride: (config) => config,
+    webpackOverride: (currentConfig) => {
+      return {
+        ...currentConfig,
+        resolve: {
+          ...currentConfig.resolve,
+          alias: {
+            ...(currentConfig.resolve?.alias || {}),
+            '@': rootDir,
+          },
+        },
+      };
+    },
   });
   console.log(`[Batch CLI] Pre-bundle completed in ${Date.now() - bundleStartTime}ms`);
+
+  // Detect Chromium executable
+  const chromeExecutable =
+    process.env.REMOTION_CHROME_EXECUTABLE ||
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (fs.existsSync('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser' : undefined) ||
+    (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+
+  if (chromeExecutable) {
+    console.log(`[Batch CLI] Using Chrome executable: ${chromeExecutable}`);
+  }
 
   // 3. Process each render job
   let successCount = 0;
@@ -115,45 +197,115 @@ async function main() {
     await supabase.from('renders').update({ status: 'rendering' }).eq('id', job.id);
 
     const meta = job.metadata || {};
-    const format = meta.format || 'webm';
+    const format = (meta.format || 'webm').toLowerCase();
     const isWebm = format.includes('webm');
     const fileName = `batch-${batchId || 'cli'}-${job.id}.${isWebm ? 'webm' : 'mp4'}`;
     const tempOutput = path.join(os.tmpdir(), fileName);
 
+    const compositionId = resolveCompositionId(meta.template, meta.compositionId);
+    console.log(`[Job ${jobNum}/${jobs.length}] Resolved Composition ID: ${compositionId} (template: ${meta.template || 'N/A'})`);
+
     try {
       const renderStartTime = Date.now();
+
+      // Extract words for kinetic typography highlighter
+      const rawPrompt = (job.prompt || '').trim();
+      const words = rawPrompt.split(/\s+/).filter(Boolean);
+      const hookWord =
+        words.length >= 2
+          ? words.slice(-2).join(' ').toUpperCase()
+          : (words[0] || 'REVEAL').toUpperCase();
+      const midPoint = Math.max(0, words.length - 2);
+      const halfMid = Math.ceil(midPoint / 2);
+      const phrase1 = words.slice(0, halfMid).join(' ').toUpperCase() || 'DISCOVER THE';
+      const phrase2 = words.slice(halfMid, midPoint).join(' ').toUpperCase() || 'NEXT EVOLUTION';
+
+      const clientName = meta.clientName || 'Motioneer Studio';
+      const accentColor = meta.accentColor || '#38bdf8';
+      const secondaryColor = meta.secondaryColor || '#6366f1';
+      const badgeText =
+        meta.badgeText || (meta.clientName ? meta.clientName.toUpperCase() : 'VERIFIED AGENCY');
+
       const inputProps = {
-        prompt: job.prompt,
-        sceneTitle: meta.sceneTitle || job.prompt,
-        primaryHeadline: job.prompt || meta.sceneTitle,
-        clientName: meta.clientName || 'Motioneer Studio',
+        // Universal Props
+        prompt: rawPrompt,
+        clientName,
         tier: meta.tier || 'agency',
-        primaryColor: meta.primaryColor || '#0f172a',
-        secondaryColor: meta.secondaryColor || '#38bdf8',
+        accentColor,
+        secondaryColor,
+        fontFamily: meta.fontFamily || 'Inter',
+        canvasBgColor: meta.canvasBgColor || (isWebm ? 'transparent' : '#09090b'),
+        backgroundColor: meta.canvasBgColor || (isWebm ? 'transparent' : '#09090b'),
+        sfxType: meta.sfxType || 'none',
+        isFree: false,
+
+        // Editorial & Speaker Lower Thirds
+        primaryText: rawPrompt,
+        secondaryText: clientName,
+        badgeText,
+        name: rawPrompt,
+        role: clientName,
+        company: clientName,
+
+        // Kinetic Typography Highlighter
+        phrase1,
+        phrase2,
+        hookWord,
+        tagline: `🔥 ${clientName.toUpperCase()} • HIGH CONVERTING`,
+
+        // Podcast Waveform
+        speakerName: clientName,
+        episodeTitle: rawPrompt,
+
+        // YouTube CTA Bar
+        channelName: clientName.startsWith('@')
+          ? clientName
+          : `@${clientName.toLowerCase().replace(/\s+/g, '')}`,
+        callToAction: rawPrompt,
+
+        // Swiss Title & Glass Bento
+        title: rawPrompt,
+        subtitle: clientName,
+        badge: badgeText,
+        sceneTitle: rawPrompt,
+        primaryHeadline: rawPrompt,
+        secondarySubtitle: clientName,
+        accentBadge: badgeText,
+
+        // Custom Procedural & 3D
         layers: meta.layers || [],
         customCode: meta.customCode,
-        sfxType: meta.sfxType || 'none',
-        backgroundColor: meta.canvasBgColor || '#09090b',
-        aspectRatio: meta.aspectRatio || '16:9',
       };
 
       const composition = await selectComposition({
         serveUrl,
-        id: meta.compositionId || 'CustomProceduralComposition',
+        id: compositionId,
         inputProps,
       });
 
       if (!composition) {
-        throw new Error(`Composition not found for job ${job.id}`);
+        throw new Error(`Composition "${compositionId}" not found in Remotion Root`);
+      }
+
+      const aspect = meta.aspectRatio || '16:9';
+      let renderWidth = 1920;
+      let renderHeight = 1080;
+
+      if (aspect === '9:16') {
+        renderWidth = 1080;
+        renderHeight = 1920;
+      } else if (aspect === '1:1') {
+        renderWidth = 1080;
+        renderHeight = 1080;
       }
 
       await renderMedia({
         composition: {
           ...composition,
-          width: meta.resolution === '4K' ? 3840 : 1920,
-          height: meta.resolution === '4K' ? 2160 : 1080,
+          width: renderWidth,
+          height: renderHeight,
           fps: meta.fps || 60,
-          durationInFrames: (meta.fps || 60) * (meta.duration || 3),
+          durationInFrames: (meta.fps || 60) * (meta.duration || 4),
         },
         serveUrl,
         codec: isWebm ? 'vp8' : 'h264',
@@ -161,11 +313,14 @@ async function main() {
         pixelFormat: isWebm ? 'yuva420p' : 'yuv420p',
         outputLocation: tempOutput,
         inputProps,
-        browserExecutable:
-          process.env.REMOTION_CHROME_EXECUTABLE ||
-          process.env.PUPPETEER_EXECUTABLE_PATH ||
-          null,
+        browserExecutable: chromeExecutable,
         chromiumOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+          ],
           gl: 'angle',
         },
         timeoutInMilliseconds: 180000,
