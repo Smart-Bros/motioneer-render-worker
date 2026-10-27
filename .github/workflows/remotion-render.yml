@@ -52,7 +52,7 @@ jobs:
           REMOTION_CHROME_EXECUTABLE: /usr/bin/google-chrome
         run: |
           if [ -f "render-worker/batch-cli.ts" ]; then
-            npx ts-node render-worker/batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
+            npx ts-node --transpile-only render-worker/batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
           else
-            npx ts-node batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
+            npx ts-node --transpile-only batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
           fi
