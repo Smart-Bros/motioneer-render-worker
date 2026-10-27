@@ -1,6 +1,6 @@
-import path from 'path';
-import fs from 'fs';
-import os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('dotenv').config();
@@ -316,13 +316,10 @@ async function main() {
         inputProps,
         browserExecutable: chromeExecutable,
         chromiumOptions: {
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-          ],
           gl: 'angle',
+          disableWebSecurity: true,
+          enableMultiProcessOnLinux: true,
+          headless: true,
         },
         timeoutInMilliseconds: 180000,
         logLevel: 'warn',
