@@ -50,16 +50,37 @@ export const SfxTrigger: React.FC<{
   );
 };
 
+export const TemplatePositionContext = React.createContext<string>('center');
+
 export const MotionBlurWrapper: React.FC<{
   enabled?: boolean;
   isFree?: boolean;
+  position?: string;
+  style?: React.CSSProperties;
   children: React.ReactNode;
-}> = ({ enabled, isFree, children }) => {
+}> = ({ enabled, isFree, position, style, children }) => {
+  const ctxPosition = React.useContext(TemplatePositionContext);
+  const activePosition = position || ctxPosition;
+  const wrapperPos = resolveTemplateWrapperPosition(activePosition);
+  const combinedStyle = { ...wrapperPos, ...style };
+
   if (enabled && !isFree) {
     return (
-      <Trail layers={3} lagInFrames={1} trailOpacity={0.6}>
-        {children}
-      </Trail>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <Trail layers={4} lagInFrames={0.5} trailOpacity={0.65}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              pointerEvents: 'auto',
+              ...combinedStyle,
+            }}
+          >
+            {children}
+          </div>
+        </Trail>
+      </div>
     );
   }
   return <>{children}</>;
@@ -115,5 +136,36 @@ export function computeTransitionTransform({
     transform: `perspective(1000px) translateY(${translateY}px) translateX(${translateX}px) rotateX(${rotateX}deg)`,
     opacity,
     clipPath,
+  };
+}
+
+export function resolveTemplateWrapperPosition(position?: string) {
+  const norm = (position || 'center').toLowerCase().trim();
+  if (norm === 'center' || norm === 'center stage') {
+    return {
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: 0,
+    };
+  }
+  if (norm === 'bottom-left') {
+    return {
+      justifyContent: 'flex-end' as const,
+      alignItems: 'flex-start' as const,
+      padding: '7% 6%',
+    };
+  }
+  if (norm === 'top-right') {
+    return {
+      justifyContent: 'flex-start' as const,
+      alignItems: 'flex-end' as const,
+      padding: '7% 6%',
+    };
+  }
+  // 'bottom-center' | 'Bottom Safe-Zone'
+  return {
+    justifyContent: 'flex-end' as const,
+    alignItems: 'center' as const,
+    padding: '7% 6%',
   };
 }
