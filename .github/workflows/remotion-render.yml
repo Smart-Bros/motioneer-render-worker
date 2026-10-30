@@ -1,4 +1,4 @@
-name: Motioneer Free Cluster Render Runner
+name: Motioneer Cloud Render Engine
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   render-batch:
-    name: Remotion SSR Video Rendering
+    name: Motioneer Render Engine Worker
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -27,29 +27,51 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install System Fonts & FFmpeg
+      - name: Verify & Setup System Libraries & Fonts
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            fonts-noto-color-emoji \
-            fonts-liberation \
-            fonts-freefont-ttf \
-            ffmpeg
-
-      - name: Install Dependencies
-        run: |
-          if [ -f "render-worker/package.json" ]; then
-            cd render-worker && npm install --no-audit --no-fund
+          if ! command -v ffmpeg &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-color-emoji fonts-liberation fonts-freefont-ttf
           else
-            npm install --no-audit --no-fund
+            sudo apt-get install -y --no-install-recommends fonts-noto-color-emoji fonts-liberation fonts-freefont-ttf || true
           fi
 
-      - name: Run Remotion Batch CLI
+      - name: Cache Node Modules
+        id: cache-npm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            render-worker/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package.json', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Cache Pre-Built Remotion Bundle
+        id: cache-bundle
+        uses: actions/cache@v4
+        with:
+          path: /tmp/remotion-bundle
+          key: ${{ runner.os }}-remotion-bundle-${{ hashFiles('remotion/**/*', 'lib/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-remotion-bundle-
+
+      - name: Install Node Dependencies
+        run: |
+          if [ -f "render-worker/package.json" ]; then
+            cd render-worker && npm install --prefer-offline --no-audit --no-fund
+          else
+            npm install --prefer-offline --no-audit --no-fund
+          fi
+
+      - name: Run Motioneer Render Engine CLI
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
           REMOTION_CHROME_EXECUTABLE: /usr/bin/google-chrome
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          REMOTION_BUNDLE_CACHE_DIR: /tmp/remotion-bundle
         run: |
           if [ -f "render-worker/batch-cli.ts" ]; then
             npx ts-node --transpile-only render-worker/batch-cli.ts --batch-id "${{ github.event.inputs.batch_id }}" --render-ids "${{ github.event.inputs.render_ids }}"
