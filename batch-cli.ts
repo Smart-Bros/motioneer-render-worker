@@ -219,7 +219,6 @@ async function updateRenderProgress(
 
   const updatePayload: Record<string, any> = {
     status: dbStatus,
-    updated_at: new Date().toISOString(),
   };
 
   if (data.videoUrl) {
@@ -248,26 +247,23 @@ async function updateRenderProgress(
     rendered_frames: data.renderedFrames ?? currentMeta.rendered_frames ?? 0,
     total_frames: data.totalFrames ?? currentMeta.total_frames ?? 0,
     renderEngine: 'motioneer-render-engine',
+    last_updated: new Date().toISOString(),
   };
   updatePayload.metadata = mergedMeta;
 
-  // Try updating top-level progress & stage_text columns along with metadata
   try {
-    const { error: fullErr } = await supabase
+    const { error: updateErr } = await supabase
       .from('renders')
-      .update({
-        ...updatePayload,
-        progress: data.progress,
-        stage_text: data.stageText,
-      })
+      .update(updatePayload)
       .eq('id', renderId);
 
-    if (fullErr) {
-      // Fallback if table columns haven't been migrated yet
-      await supabase.from('renders').update(updatePayload).eq('id', renderId);
+    if (updateErr) {
+      console.error(`[Motioneer Render Engine] Error updating render progress for ${renderId}:`, updateErr);
+    } else if (data.stage === 'completed') {
+      console.log(`[Motioneer Render Engine] Successfully updated DB for ${renderId} (status: success, video_url: ${data.videoUrl})`);
     }
-  } catch {
-    await supabase.from('renders').update(updatePayload).eq('id', renderId);
+  } catch (err) {
+    console.error(`[Motioneer Render Engine] Exception updating render progress for ${renderId}:`, err);
   }
 }
 
@@ -590,6 +586,9 @@ async function main() {
     process.exit(0);
   });
 
+  // Track processed jobs to guarantee no duplicate execution within this worker process
+  const processedJobIds = new Set<string>();
+
   // Step A: Process initially requested jobs (if any)
   let initialJobs: any[] = [];
   if (renderIds && renderIds.length > 0) {
@@ -607,6 +606,7 @@ async function main() {
   if (initialJobs.length > 0) {
     console.log(`[Motioneer Render Engine] Found ${initialJobs.length} initial render jobs to process.`);
     for (const job of initialJobs) {
+      processedJobIds.add(job.id);
       await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
     }
   }
@@ -641,11 +641,17 @@ async function main() {
 
       if (pendingJobs && pendingJobs.length > 0) {
         for (const job of pendingJobs) {
-          // Verify job is not claimed by another process
-          if (job.metadata?.stage === 'rendering' && Date.now() - new Date(job.updated_at || job.created_at).getTime() < 30000) {
+          // Skip if already processed in this session or already has video
+          if (processedJobIds.has(job.id) || job.video_url || job.status === 'success') {
             continue;
           }
 
+          // Verify job is not claimed by another process
+          if (job.metadata?.stage === 'rendering' && Date.now() - new Date(job.metadata?.last_updated || job.created_at).getTime() < 30000) {
+            continue;
+          }
+
+          processedJobIds.add(job.id);
           console.log(`[Warm Worker Loop] Instant pickup for pending render ID: ${job.id}`);
           await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
           lastJobFinishedTime = Date.now();
