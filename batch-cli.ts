@@ -1,5 +1,5 @@
 import { bundle } from '@remotion/bundler';
-import { selectComposition, renderMedia } from '@remotion/renderer';
+import { selectComposition, renderMedia, RenderInternals } from '@remotion/renderer';
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -279,7 +279,7 @@ async function processRenderJob(
   job: any,
   serveUrl: string,
   chromeExecutable: string | undefined,
-  cpuCount: number
+  concurrencySetting: number | string
 ): Promise<boolean> {
   const meta = job.metadata || {};
   const renderStartTime = Date.now();
@@ -408,7 +408,7 @@ async function processRenderJob(
     const targetFps = Number(meta.fps || 30);
     const targetDurationFrames = Math.max(30, Math.round(targetFps * Number(meta.duration || 3)));
 
-    console.log(`[Motioneer Render Engine] Rendering ${renderWidth}x${renderHeight} @ ${targetFps}fps (${targetDurationFrames} frames) with concurrency ${cpuCount}...`);
+    console.log(`[Motioneer Render Engine] Rendering ${renderWidth}x${renderHeight} @ ${targetFps}fps (${targetDurationFrames} frames) with concurrency ${concurrencySetting}...`);
 
     // Stage 3: Rendering Frames with Deterministic Progress Callback
     await renderMedia({
@@ -426,7 +426,7 @@ async function processRenderJob(
       outputLocation: tempOutput,
       inputProps,
       browserExecutable: chromeExecutable,
-      concurrency: cpuCount,
+      concurrency: concurrencySetting,
       offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
       chromiumOptions: {
         gl: 'angle',
@@ -567,7 +567,7 @@ async function main() {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const chromeExecutable = getSystemChrome();
-  const cpuCount = Math.max(2, os.cpus().length);
+  const safeConcurrency = RenderInternals?.getMaxConcurrency ? RenderInternals.getMaxConcurrency() : '100%';
 
   if (chromeExecutable) {
     console.log(`[Motioneer Render Engine] Detected system Chrome: ${chromeExecutable}`);
@@ -607,7 +607,7 @@ async function main() {
   if (initialJobs.length > 0) {
     console.log(`[Motioneer Render Engine] Found ${initialJobs.length} initial render jobs to process.`);
     for (const job of initialJobs) {
-      await processRenderJob(supabase, job, serveUrl, chromeExecutable, cpuCount);
+      await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
     }
   }
 
@@ -647,7 +647,7 @@ async function main() {
           }
 
           console.log(`[Warm Worker Loop] Instant pickup for pending render ID: ${job.id}`);
-          await processRenderJob(supabase, job, serveUrl, chromeExecutable, cpuCount);
+          await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
           lastJobFinishedTime = Date.now();
         }
       }
