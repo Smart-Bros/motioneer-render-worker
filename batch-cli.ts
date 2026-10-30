@@ -606,6 +606,19 @@ async function main() {
   if (initialJobs.length > 0) {
     console.log(`[Motioneer Render Engine] Found ${initialJobs.length} initial render jobs to process.`);
     for (const job of initialJobs) {
+      // Check if job was already completed by Hugging Face while GitHub runner was booting up
+      const { data: latestJob } = await supabase
+        .from('renders')
+        .select('status, video_url')
+        .eq('id', job.id)
+        .maybeSingle();
+
+      if (latestJob?.status === 'success' && latestJob?.video_url) {
+        console.log(`[Motioneer Render Engine] Job ${job.id} was already completed by primary worker (${latestJob.video_url}). Skipping.`);
+        processedJobIds.add(job.id);
+        continue;
+      }
+
       processedJobIds.add(job.id);
       await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
     }
