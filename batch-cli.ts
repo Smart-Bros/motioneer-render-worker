@@ -315,6 +315,7 @@ async function processRenderJob(
     const accentColor = meta.accentColor || meta.primaryColor || '#38bdf8';
     const secondaryColor = meta.secondaryColor || '#6366f1';
     const badgeText = meta.badgeText || (meta.clientName ? meta.clientName.toUpperCase() : 'VERIFIED AGENCY');
+    const userProps = (meta.inputProps || {}) as Record<string, any>;
 
     const inputProps = {
       // Universal Props
@@ -367,6 +368,9 @@ async function processRenderJob(
       layers: meta.layers || [],
       customCode: meta.customCode,
       tsxCode: meta.customCode || meta.tsxCode,
+
+      // Merge dynamic props from studio
+      ...userProps,
     };
 
     // Stage 2: Compiling Composition
