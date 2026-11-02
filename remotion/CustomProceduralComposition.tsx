@@ -803,20 +803,32 @@ export const CustomProceduralComposition: React.FC<CustomProceduralCompositionPr
   if (compiled) {
     const DynComp = compiled;
     return (
-      <DynComp
-        primaryHeadline={primaryHeadline || sceneTitle}
-        secondarySubtitle={secondarySubtitle}
-        accentBadge={accentBadge}
-        iconName={iconName}
-        accentColor={accentColor}
-        secondaryColor={secondaryColor}
-        fontFamily={fontFamily}
-        backgroundColor={backgroundColor}
-        position={position}
-        sceneTitle={sceneTitle}
-        sfxType={sfxType}
-        isMuted={isMuted}
-      />
+      <AbsoluteFill
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: backgroundColor || 'transparent',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <DynComp
+          primaryHeadline={primaryHeadline || sceneTitle}
+          secondarySubtitle={secondarySubtitle}
+          accentBadge={accentBadge}
+          iconName={iconName}
+          accentColor={accentColor}
+          secondaryColor={secondaryColor}
+          fontFamily={fontFamily}
+          backgroundColor={backgroundColor}
+          position={position}
+          sceneTitle={sceneTitle}
+          sfxType={sfxType}
+          isMuted={isMuted}
+        />
+      </AbsoluteFill>
     );
   }
 
