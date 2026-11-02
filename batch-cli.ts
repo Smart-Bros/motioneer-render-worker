@@ -567,7 +567,13 @@ async function main() {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
   const chromeExecutable = getSystemChrome();
-  const safeConcurrency = RenderInternals?.getMaxConcurrency ? RenderInternals.getMaxConcurrency() : '100%';
+  let safeConcurrency: number | string = 4;
+  try {
+    const rawMax = RenderInternals?.getMaxConcurrency ? RenderInternals.getMaxConcurrency() : (os.cpus()?.length || 4);
+    safeConcurrency = Math.min(16, Math.max(1, typeof rawMax === 'number' ? rawMax : 4));
+  } catch {
+    safeConcurrency = 4;
+  }
 
   if (chromeExecutable) {
     console.log(`[Motioneer Render Engine] Detected system Chrome: ${chromeExecutable}`);
@@ -617,8 +623,11 @@ async function main() {
         .eq('id', job.id)
         .maybeSingle();
 
-      if (latestJob?.status === 'success' && latestJob?.video_url) {
-        console.log(`[Motioneer Render Engine] Job ${job.id} was already completed by primary worker (${latestJob.video_url}). Skipping.`);
+      if (
+        (latestJob?.status === 'success' && latestJob?.video_url) ||
+        (latestJob?.metadata?.stage === 'rendering' && Date.now() - new Date(latestJob?.metadata?.last_updated || latestJob.created_at).getTime() < 60000)
+      ) {
+        console.log(`[Motioneer Render Engine] Job ${job.id} is already completed or actively rendering on another node. Skipping.`);
         processedJobIds.add(job.id);
         continue;
       }
@@ -626,6 +635,13 @@ async function main() {
       processedJobIds.add(job.id);
       await processRenderJob(supabase, job, serveUrl, chromeExecutable, safeConcurrency);
     }
+  }
+
+  // If this run was dispatched for a single studio render, exit immediately once complete!
+  if (batchId && batchId.startsWith('single-')) {
+    console.log('[Motioneer Render Engine] Single studio render job completed. Exiting worker immediately.');
+    await clearHeartbeat(supabase);
+    process.exit(0);
   }
 
   // Step B: Enter the 10-Minute (600s) Warm Queue Worker Loop
@@ -659,7 +675,12 @@ async function main() {
       if (pendingJobs && pendingJobs.length > 0) {
         for (const job of pendingJobs) {
           // Skip if already processed in this session or already has video
-          if (processedJobIds.has(job.id) || job.video_url || job.status === 'success') {
+          if (
+            processedJobIds.has(job.id) ||
+            job.video_url ||
+            job.status === 'success' ||
+            job.status === 'completed'
+          ) {
             continue;
           }
 
