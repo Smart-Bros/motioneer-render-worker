@@ -53,7 +53,9 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
   const frame = useCurrentFrame();
   const { width, height, fps, durationInFrames } = useVideoConfig();
 
-  const scale = Math.min(width, height) / 1080;
+  const isLandscape = width > height;
+  const baseScale = Math.min(width, height) / 1080;
+  const scale = isLandscape ? baseScale * 1.25 : baseScale;
   const isSafeZone = position === 'Bottom Safe-Zone';
 
   const springConfig = resolveSpringPhysics(springPhysics);
@@ -135,14 +137,14 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
             backdropFilter: 'blur(32px)',
             border: '1px solid rgba(255, 255, 255, 0.14)',
             borderRadius: `${26 * scale}px`,
-            padding: `${26 * scale}px ${36 * scale}px`,
+            padding: `${28 * scale}px ${38 * scale}px`,
             display: 'flex',
             flexDirection: 'column',
             gap: `${14 * scale}px`,
             boxShadow: `0 35px 80px rgba(0, 0, 0, 0.9), 0 0 45px ${primaryColor}25`,
             position: 'relative',
             overflow: 'hidden',
-            minWidth: `${380 * scale}px`,
+            minWidth: `${Math.round(Math.max(420 * scale, isLandscape ? width * 0.40 : width * 0.78))}px`,
             maxWidth: '92%',
           }}
         >
@@ -225,7 +227,7 @@ export const StripeMetricBentoCard: React.FC<StripeMetricBentoCardProps> = ({
           >
             <span
               style={{
-                fontSize: `${Math.round(64 * scale)}px`,
+                fontSize: `${Math.round(74 * scale)}px`,
                 fontWeight: 950,
                 color: '#ffffff',
                 fontVariantNumeric: 'tabular-nums',
